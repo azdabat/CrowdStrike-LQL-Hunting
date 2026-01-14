@@ -1,0 +1,55 @@
+#event_simpleName=ProcessRollup2 OR #event_simpleName=Event_EppDetectionSummaryEvent AND (
+    (FileName="powershell.exe"
+        AND (CommandLine="*-EncodedCommand*" OR CommandLine="*-enc *")
+        AND (
+            CommandLine="*IEX*" OR CommandLine="*Invoke-Expression*" OR CommandLine="*DownloadString*" OR CommandLine="*DownloadFile*" OR CommandLine="*Net.WebClient*" OR CommandLine="*Assembly.Load*" OR CommandLine="*FromBase64String*" OR CommandLine="*Invoke-Shellcode*" OR CommandLine="*Invoke-ReflectivePEInjection*" OR CommandLine="*Get-Clipboard*"
+        )
+        AND ParentBaseFileName!="QualysAgent.exe"
+        AND ParentBaseFileName!="ndtrack.exe"
+        AND ParentBaseFileName!="gc_worker.exe"
+    )
+    OR (FileName="powershell.exe"
+        AND (
+            CommandLine="*Invoke-WebRequest*" OR CommandLine="*iwr *" OR CommandLine="*DownloadString*" OR CommandLine="*DownloadFile*" OR CommandLine="*Net.WebClient*"
+        )
+        AND (CommandLine="*IEX*" OR CommandLine="*Invoke-Expression*")
+        AND (CommandLine="*http://*" OR CommandLine="*https://*" OR CommandLine="*raw.githubusercontent.com*" OR CommandLine="*pastebin.com*" OR CommandLine="*cdn.discordapp.com*" OR CommandLine="*anonfiles*" OR CommandLine="*transfer.sh*" OR CommandLine="*bit.ly*" OR CommandLine="*tinyurl*" OR CommandLine="*.ru*" OR CommandLine="*.xyz*" OR CommandLine="*.pw*")
+        AND ParentBaseFileName!="QualysAgent.exe"
+        AND ParentBaseFileName!="ndtrack.exe"
+        AND ParentBaseFileName!="gc_worker.exe"
+    )
+    OR (FileName="powershell.exe"
+        AND (
+            CommandLine="*AmsiUtils*" OR CommandLine="*amsiInitFailed*" OR CommandLine="*Set-MpPreference*" OR CommandLine="*DisableRealtimeMonitoring*" OR CommandLine="*Add-MpPreference*" OR CommandLine="*DisableIOAVProtection*"
+        )
+        AND ParentBaseFileName!="QualysAgent.exe"
+        AND ParentBaseFileName!="ndtrack.exe"
+        AND ParentBaseFileName!="gc_worker.exe"
+    )
+    OR (FileName="powershell.exe"
+        AND (
+            ParentBaseFileName="winword.exe" OR ParentBaseFileName="excel.exe" OR ParentBaseFileName="outlook.exe"
+            OR ParentBaseFileName="wscript.exe" OR ParentBaseFileName="cscript.exe" OR ParentBaseFileName="mshta.exe"
+            OR ParentBaseFileName="chrome.exe" OR ParentBaseFileName="firefox.exe" OR ParentBaseFileName="iexplore.exe"
+        )
+        AND (CommandLine="*\\AppData\\*" OR CommandLine="*\\Temp\\*")
+    )
+    OR (FileName="powershell.exe"
+        AND CommandLine="*schtasks*"
+        AND CommandLine="*.ps1*"
+        AND (CommandLine="*\\Users\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\Temp\\*")
+        AND ParentBaseFileName!="QualysAgent.exe"
+        AND ParentBaseFileName!="ndtrack.exe"
+        AND ParentBaseFileName!="gc_worker.exe"
+    )
+    OR (FileName="powershell.exe"
+        AND (
+            CommandLine="*Invoke-Mimikatz*" OR CommandLine="*Invoke-NinjaCopy*" OR CommandLine="*Invoke-DllInjection*" OR CommandLine="*Invoke-ReflectivePEInjection*" OR CommandLine="*Invoke-Shellcode*" OR CommandLine="*Invoke-PSInject*" OR CommandLine="*Invoke-ProcessHollow*" OR CommandLine="*Invoke-SharpCradle*"
+        )
+        AND ParentBaseFileName!="QualysAgent.exe"
+        AND ParentBaseFileName!="ndtrack.exe"
+        AND ParentBaseFileName!="gc_worker.exe"
+    )
+)
+| groupBy([CommandLine, FileName, ParentBaseFileName], function=[collect(ComputerName), count(aid, distinct=true, as=HostCount), count(as=EventCount)], limit=200)
+| table([FileName, CommandLine, ParentBaseFileName, HostCount, EventCount, ComputerName])
