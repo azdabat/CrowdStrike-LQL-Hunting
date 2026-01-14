@@ -1,0 +1,9 @@
+#event_simpleName=ProcessRollup2 OR #event_simpleName=Event_EppDetectionSummaryEvent AND (
+    (FileName="ftp.exe"
+        AND (CommandLine="*-s:*" OR CommandLine="*script.txt*" OR CommandLine="*ftp://*" OR CommandLine="*ftps://*")
+        AND (CommandLine="*put *" OR CommandLine="*get *" OR CommandLine="*mput *" OR CommandLine="*mget *")
+        AND ParentBaseFileName!="QualysAgent.exe" AND ParentBaseFileName!="ndtrack.exe" AND ParentBaseFileName!="gc_worker.exe"
+    )
+)
+| groupBy([CommandLine, FileName, ParentBaseFileName], function=[collect(ComputerName), count(aid, distinct=true, as=HostCount), count(as=EventCount)], limit=200)
+| table([FileName, CommandLine, ParentBaseFileName, HostCount, EventCount, ComputerName])
