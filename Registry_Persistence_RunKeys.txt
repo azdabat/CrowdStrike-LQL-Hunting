@@ -1,0 +1,39 @@
+(#event_simpleName=Asep* OR #event_simpleName=Reg*)
+| RegObjectName=/.*\\Microsoft\\Windows\\CurrentVersion\\Run.*/i
+| (
+    RegStringValue=/.*-EncodedCommand.*/i OR
+    RegStringValue=/.*\s-enc\s.*/i OR
+    RegStringValue=/.*mshta\s+(http|https|ftp):.*/i OR
+    RegStringValue=/.*mshta\s+(vbscript|javascript|jscript):.*/i OR
+    RegStringValue=/.*rundll32\s+.*\\javascript:.*/i OR
+    RegStringValue=/.*regsvr32\s+.*scrobj\.dll.*/i OR
+    RegStringValue=/.*regsvr32\s+-[su]\s+.*\.dll.*/i OR
+    RegStringValue=/.*rundll32\s+.*\\Temp\\.*\.dll.*/i OR
+    RegStringValue=/.*rundll32\s+.*\\\\.*/i OR
+    RegStringValue=/.*powershell\s+-[eE][pP]\s+.*/i OR
+    RegStringValue=/.*\s\/nosplash\s+.*\.hta.*/i OR
+    RegStringValue=/.*\s-[eE][cCnN]\s.*/i OR
+    RegStringValue=/.*\s-[eE][pP]\s.*/i OR
+    RegStringValue=/.*\s-[wW]\s+hidden\s.*/i OR
+    RegStringValue=/.*\s-[vV][eE][xX]\s.*/i OR
+    RegStringValue=/.*(powershell|pwsh)\s+-[nN][oO][pP].*/i OR
+    RegStringValue=/.*(cmd|wscript|cscript)\s+\/.*/i OR
+    RegStringValue=/.*(mshta|wmic|schtasks)\s+.*\.(vbs|js|bat|cmd).*/i OR
+    RegStringValue=/.*certutil\s+-(urlcache|decode).*/i OR
+    RegStringValue=/.*bitsadmin\s+\/transfer.*/i OR
+    RegStringValue=/.*(wscript|cscript|mshta|rundll32|regsvr32)\s+.*\.(vbs|js|jse|wsf|hta).*/i OR
+    RegStringValue=/.*(http|https|ftp|tcp|udp):\/\/.*/i OR
+    RegStringValue=/.*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}.*/i OR
+    RegStringValue=/.*[A-Za-z0-9+/]{20,}={0,2}.*/i OR
+    RegStringValue=/.*%[0-9a-fA-F]{2}.*/i OR
+    RegStringValue=/.*\^[A-Za-z].*/i OR
+    RegStringValue=/.*\s-[oO][bBfF]\s.*/i
+)
+AND NOT (
+    RegStringValue=/.*\.rbf \/restore.*/i OR
+    RegStringValue=/.*\\Microsoft\\Windows Defender\\.*/i OR
+    RegStringValue=/.*\\Adobe\\Acrobat.*/i OR
+    RegStringValue=/.*\\Java\\.*/i
+)
+| table(["@timestamp", aid, RegObjectName, RegStringValue, ComputerName, UserName, ParentBaseFileName], limit=1000)
+| sort(@timestamp, order=desc)
