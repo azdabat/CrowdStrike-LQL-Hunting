@@ -4,7 +4,15 @@
 **Platform:** CrowdStrike Falcon (LogScale / LQL)  
 **Audience:** SOC Analysts, Threat Hunters, Detection Engineers  
 **Focus:** Practical, production-aligned hunting for LOLBin abuse and attacker tradecraft within CrowdStrike telemetry constraints
-
+> **Note on testing / scope**
+>
+> This repo is a **portable LQL hunting pack** assembled from my prior operational hunting work and retained rule templates.  
+> I currently **do not have access to a Falcon tenant for end-to-end validation**, so queries here should be treated as **Falcon-ready starting points** that require:
+> - tenant-specific field verification (e.g., `ProcessRollup2` coverage and CommandLine population)
+> - environment baselining (7–14 days)
+> - tuning/allow-listing for common admin tooling
+>
+> The value of this pack is the **tradecraft logic** (what to look for and why), plus a clear validation/tuning workflow to operationalise it quickly once access is available.
 ---
 
 ## Overview
