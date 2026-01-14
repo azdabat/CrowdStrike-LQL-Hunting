@@ -3,235 +3,115 @@
 **Author:** Ala Dabat  
 **Platform:** CrowdStrike Falcon (LogScale / LQL)  
 **Audience:** SOC Analysts, Threat Hunters, Detection Engineers  
-**Focus:** Behavioural detection of real-world attacker tradecraft using LOLBins, scripting engines, ingress tools, and persistence mechanisms.
+**Focus:** Practical, production-aligned hunting for LOLBin abuse and attacker tradecraft within CrowdStrike telemetry constraints
 
 ---
 
 ## Overview
 
-This repository contains a **curated set of production-tested CrowdStrike LQL threat hunts** focused on **living-off-the-land abuse**, **fileless execution**, **payload ingress**, **persistence**, and **data exfiltration**.
+This repository contains a **curated set of CrowdStrike LQL threat hunts** focused on **living-off-the-land abuse**, **PowerShell and scripting misuse**, **payload ingress**, and **context reconstruction for incomplete EDR alerts**.
 
-These rules are not theoretical. They are written to reflect:
-- How attackers *actually* operate in enterprise environments
-- The realities of Falcon telemetry
-- The balance between **signal fidelity** and **operational noise**
+These hunts are intentionally scoped to reflect:
+- How **real attackers** abuse native Windows tooling
+- The **telemetry and schema realities** of CrowdStrike Falcon
+- The role of LQL as a **triage and investigative language**, not a full detection engineering platform
 
-The pack is designed to be:
-- **Readable in GitHub** (no proprietary file formats)
+This pack is designed to be:
+- **Readable and reviewable in GitHub**
 - **Directly usable in Falcon LogScale**
-- **Explainable in interviews and SOC reviews**
+- **Operationally realistic for SOC environments**
+- **Explainable in interviews, playbooks, and case reviews**
+
+---
+
+## Detection Architecture Context
+
+CrowdStrike LQL is used here as a **scoping and pivoting layer**.
+
+These hunts intentionally focus on:
+- High-signal LOLBins (`powershell.exe`, `cmd.exe`, `rundll32.exe`, `mshta.exe`, etc.)
+- Command-line intent and abuse patterns
+- Parent/child relationships where Falcon telemetry is reliable
+- Analyst-driven reconstruction of execution context when alerts lack full lineage
+
+**Complex attack-chain correlation, scoring, and lifecycle-level detection logic are intentionally implemented outside the EDR layer** (e.g. SIEM / data-lake platforms), where telemetry depth and cross-domain reasoning are available.
+
+This separation reflects how **mature SOC and detection architectures operate in production**.
 
 ---
 
 ## Design Philosophy
 
-**Behaviour > Signatures**
+### Behaviour > Signatures
 
-- No hash or IOC dependency
-- Focus on *execution patterns*, *command-line intent*, and *process relationships*
-- Resistant to payload mutation, encryption, and staging changes
+- No static hash or IOC dependency
+- Focus on **execution patterns**, **command-line semantics**, and **process context**
+- Resilient to payload mutation, encoding, and polymorphism
 
-**Noise-aware by default**
+### Noise-aware by design
 
 - Explicit parent process exclusions
-- Host-count and event-count aggregation for triage
-- Avoids alert spam from vulnerability scanners and management agents
+- User-writable path bias
+- Aggregation and rarity logic where applicable
+- Rules intended to surface **actionable signal**, not alert volume
 
-**SOC-first output**
+### Platform-conscious implementation
 
-- Grouped results (not single-event spam)
-- Context-rich fields: parent process, command line, host count
-- Easy pivoting for investigations
-
----
-
-## Repository Structure
-
-Each file is **numbered intentionally** so the repo reads like a hunting playbook, from initial execution → persistence → exfiltration.
-
-> Files are stored as `.txt` for maximum GitHub readability (CrowdStrike does not require a `.lql` extension).
+- Rules are written to **fit Falcon’s event model**, not fight it
+- No attempt to force long attack chains or scoring logic into LQL
+- Hunts assume analyst reasoning and follow-on pivoting
 
 ---
 
-## Hunt Catalogue
+## Contents
 
-### 01 — PowerShell Advanced Hunt (King Rule)
-**`01_PowerShell_Advanced_Hunt.txt`**
+This pack currently includes hunts for:
 
-Detects:
-- Encoded commands (`-enc`)
-- `IEX` / `Invoke-Expression`
-- In-memory loaders
-- Web-based payload staging
-- AMSI tampering
-- Office → PowerShell execution chains
+- **LOLBins abuse**
+  - PowerShell execution patterns
+  - Cmd.exe misuse
+  - Script host and binary proxy execution
 
-This is the core rule that surfaces the majority of modern fileless intrusions.
+- **PowerShell tradecraft**
+  - Encoded and obfuscated command lines
+  - Execution context analysis
+  - Inline Base64 decoding for analyst visibility
 
----
-
-### 02 — CertUtil Ingress & Decode
-**`02_CertUtil_Ingress_Decode.txt`**
-
-Detects:
-- `certutil -urlcache` downloads
-- Encode/decode abuse
-- Binary and script reconstruction on disk
-
-Commonly abused by APT and commodity malware alike.
+- **Alert context reconstruction**
+  - Pivoting from web, script, or partial alerts
+  - Identifying originating files (e.g. LNK, script, dropped payloads)
+  - Timeline expansion for investigation write-ups
 
 ---
 
-### 03 — MSHTA Proxy Execution
-**`03_Mshta_Proxy_Execution.txt`**
+## Intended Use
 
-Detects:
-- `javascript:` / `vbscript:` protocol handlers
-- Remote HTA execution
-- Temp-based staging
+These hunts are designed for:
+- **Threat hunting**
+- **Alert enrichment**
+- **Incident investigation**
+- **SOC training and analyst enablement**
 
-Classic LOLBin execution proxy.
+They are **not** intended to replace:
+- SIEM-based correlation
+- Detection engineering pipelines
+- Prevention or policy logic
 
----
-
-### 04 — Regsvr32 Squiblydoo
-**`04_Regsvr32_Squiblydoo.txt`**
-
-Detects:
-- `/i:` remote scriptlet loading
-- `scrobj.dll` abuse
-- SCT / HTA execution via regsvr32
-
-High-signal and still effective.
+Instead, they complement those layers by providing **fast, high-signal endpoint visibility** where Falcon excels.
 
 ---
 
-### 05 — Rundll32 Ordinal & WebDAV Abuse
-**`05_Rundll32_Ordinal_WebDav.txt`**
+## Related Work
 
-Detects:
-- Ordinal execution (`#,`)
-- WebDAV cookie abuse
-- Script protocol execution
+For full **behavioral detection engineering**, **attack-chain modeling**, and **scoring-based logic**, see my primary research and KQL-based work in other repositories on this profile.
 
-Used heavily in bypass chains.
+This repository exists to demonstrate **effective CrowdStrike operation**, not to reimplement SIEM functionality inside an EDR.
 
 ---
 
-### 06 — Persistence Pack (Tasks & Services)
-**`06_Persistence_Pack.txt`**
+## Final Note
 
-Detects:
-- Scheduled task creation using interpreters
-- Service creation pointing to LOLBins
-- Script-based persistence
+CrowdStrike is a powerful EDR for **endpoint visibility and response**.  
+These hunts are written with that reality in mind.
 
-Covers multiple ATT&CK persistence techniques in one view.
-
----
-
-### 07 — Script Hosts (WScript / CScript)
-**`07_Scripting_Hosts.txt`**
-
-Detects:
-- Script execution from the internet
-- `ADODB.Stream`, `ActiveXObject`
-- Temp and web-based staging
-
-Common in phishing and initial access.
-
----
-
-### 08 — Bitsadmin Transfer Abuse
-**`08_Bitsadmin_Transfer.txt`**
-
-Detects:
-- `/transfer` and `/addfile`
-- Binary and script ingress
-- Silent background downloads
-
-Still widely abused despite deprecation.
-
----
-
-### 09 — MSIExec Remote Install
-**`09_Msiexec_Remote.txt`**
-
-Detects:
-- MSI installs from URLs
-- Browser-launched MSI abuse
-- Temp-based installer execution
-
-Seen in both malware and hands-on-keyboard attacks.
-
----
-
-### 10 — FTP Automated Exfiltration
-**`10_Ftp_Exfil.txt`**
-
-Detects:
-- Scripted FTP sessions
-- Automated `put` / `mput`
-- Credential and data exfiltration patterns
-
-Low noise, high intent.
-
----
-
-### 11 — Registry Run-Key Persistence (Advanced)
-**`11_Registry_Persistence_RunKeys.txt`**
-
-Detects:
-- Obfuscated Run / RunOnce entries
-- Encoded commands
-- Script-based autoruns
-- Network-based persistence
-
-This is a **complex, high-fidelity registry hunt** with carefully tuned exclusions.
-
----
-
-## MITRE ATT&CK Coverage (High-Level)
-
-- **TA0001** Initial Access  
-- **TA0002** Execution  
-- **TA0003** Persistence  
-- **TA0005** Defense Evasion  
-- **TA0006** Credential Access  
-- **TA0010** Exfiltration  
-
-Mapped implicitly through behaviour rather than explicit tagging.
-
----
-
-## How to Use This Repo
-
-1. Copy a hunt into **CrowdStrike Falcon LogScale**
-2. Run as:
-   - Ad-hoc threat hunt
-   - Scheduled search
-3. Tune:
-   - Parent process exclusions
-   - Host count thresholds
-4. Promote high-signal hunts to detections if desired
-
----
-
-## Why This Repo Exists
-
-This repository demonstrates:
-- Real-world detection engineering skill
-- Deep understanding of Windows tradecraft
-- Practical SOC experience with CrowdStrike telemetry
-- The ability to explain *why* something is malicious, not just that it is
-
-These are the kinds of hunts that catch attackers **before** they escalate.
-
----
-
-## Disclaimer
-
-All queries are provided for **defensive and educational purposes only**.  
-Tune appropriately for your environment before production use.
-
----
+They prioritise **clarity, operational usefulness, and analyst effectiveness** over theoretical completeness — exactly as required in real SOC environments.
