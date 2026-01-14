@@ -1,0 +1,13 @@
+#event_simpleName=ProcessRollup2 OR #event_simpleName=Event_EppDetectionSummaryEvent AND (
+    ((FileName="wscript.exe" OR FileName="cscript.exe")
+        AND (CommandLine="*http://*" OR CommandLine="*https://*")
+        AND (CommandLine="*.js*" OR CommandLine="*.vbs*" OR CommandLine="*.hta*" OR CommandLine="*.sct*" OR CommandLine="*.ps1*")
+        AND ParentBaseFileName!="QualysAgent.exe" AND ParentBaseFileName!="ndtrack.exe" AND ParentBaseFileName!="gc_worker.exe"
+    )
+    OR ((FileName="wscript.exe" OR FileName="cscript.exe")
+        AND (CommandLine="*DownloadString*" OR CommandLine="*ActiveXObject*" OR CommandLine="*ADODB.Stream*" OR CommandLine="*WScript.Shell*")
+        AND ParentBaseFileName!="QualysAgent.exe" AND ParentBaseFileName!="ndtrack.exe" AND ParentBaseFileName!="gc_worker.exe"
+    )
+)
+| groupBy([CommandLine, FileName, ParentBaseFileName], function=[collect(ComputerName), count(aid, distinct=true, as=HostCount), count(as=EventCount)], limit=200)
+| table([FileName, CommandLine, ParentBaseFileName, HostCount, EventCount, ComputerName])
