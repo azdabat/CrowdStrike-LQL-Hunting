@@ -1,0 +1,15 @@
+#event_simpleName=ProcessRollup2 OR #event_simpleName=Event_EppDetectionSummaryEvent AND (
+    (FileName="msiexec.exe"
+        AND CommandLine="*/i *"
+        AND (CommandLine="*http://*" OR CommandLine="*https://*")
+        AND CommandLine="*.msi*"
+        AND ParentBaseFileName!="QualysAgent.exe" AND ParentBaseFileName!="ndtrack.exe" AND ParentBaseFileName!="gc_worker.exe"
+    )
+    OR (FileName="msiexec.exe"
+        AND (CommandLine="*\\AppData\\Local\\Temp\\*" OR CommandLine="*\\Windows\\Temp\\*")
+        AND CommandLine="*.msi*"
+        AND ParentBaseFileName="chrome.exe"
+    )
+)
+| groupBy([CommandLine, FileName, ParentBaseFileName], function=[collect(ComputerName), count(aid, distinct=true, as=HostCount), count(as=EventCount)], limit=200)
+| table([FileName, CommandLine, ParentBaseFileName, HostCount, EventCount, ComputerName])
