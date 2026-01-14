@@ -1,0 +1,44 @@
+(#event_simpleName=/^(Asep|Reg)/i)
+| event_platform=Win
+| RegObjectName=/\\Microsoft\\Windows\\CurrentVersion\\(Run|RunOnce)(\\|$)/i
+   OR RegObjectName=/\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\Run(\\|$)/i
+   OR RegObjectName=/\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\(Run|RunOnce)(\\|$)/i
+| RegStringValue=/./
+| RegStringValue=/\b(powershell|pwsh|cmd|wscript|cscript|mshta|rundll32|regsvr32|bitsadmin|certutil|schtasks)\.exe\b/i
+| RegStringValue=/(
+    -enc(odedcommand)?\b|
+    frombase64string\b|
+    \biex\b|invoke-expression\b|
+    -w\s+hidden\b|
+    -nop\b|-noni\b|
+    (http|https|ftp):\/\/|
+    \b\d{1,3}(\.\d{1,3}){3}\b|
+    [A-Za-z0-9+\/]{60,}={0,2}
+)/ix
+| RegStringValue=/(
+    \\Users\\[^\\]+\\AppData\\(Local|Roaming)\\|
+    \\Users\\Public\\|
+    \\ProgramData\\|
+    \\Windows\\Temp\\|
+    \\Temp\\|
+    \\Downloads\\|
+    \.(ps1|vbs|js|jse|wsf|hta|sct|bat|cmd|dll)\b|
+    scrobj\.dll|
+    javascript:|vbscript:|jscript:
+)/ix
+AND NOT RegStringValue=/(
+    \\Microsoft\\Windows Defender\\|
+    \\Microsoft\\Edge\\|
+    \\Google\\(Chrome|Update)\\|
+    \\Mozilla\\|
+    \\Adobe\\(Acrobat|ARM)\\|
+    \\Oracle\\Java\\|
+    \\Citrix\\|
+    \\VMware\\|
+    \\Intel\\|
+    \\Dell\\|
+    \\Lenovo\\|
+    \\HP\\
+)/ix
+| table(["@timestamp", aid, RegObjectName, RegStringValue, ComputerName, UserName, ParentBaseFileName], limit=1000)
+| sort(@timestamp, order=desc)
