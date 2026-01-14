@@ -1,0 +1,102 @@
+// ============================================================================
+// CrowdStrike Falcon LogScale (LQL) — PowerShell Suspicious Tradecraft (Replacement)
+// Author: Ala Dabat
+// Purpose: Behavioural hunting for high-signal PowerShell abuse (encoded, cradle, tamper, LOL-ish parentage)
+// Notes:
+//  - Uses ProcessRollup2 only (most consistent for CommandLine + parent/child fields)
+//  - Includes pwsh.exe + powershell_ise.exe
+//  - Fixes AND/OR precedence by scoping conditions explicitly
+// ============================================================================
+
+#event_simpleName=ProcessRollup2
+| where (
+    FileName="powershell.exe"
+    OR FileName="pwsh.exe"
+    OR FileName="powershell_ise.exe"
+)
+| where ParentBaseFileName!="QualysAgent.exe"
+  AND ParentBaseFileName!="ndtrack.exe"
+  AND ParentBaseFileName!="gc_worker.exe"
+| where (
+
+    // 1) Encoded / obfuscated execution + “intent” tokens
+    (
+      (CommandLine="*-EncodedCommand*" OR CommandLine="*-enc *" OR CommandLine="*-ec *" OR CommandLine="*-e *")
+      AND (
+        CommandLine="*IEX*" OR CommandLine="*Invoke-Expression*"
+        OR CommandLine="*DownloadString*" OR CommandLine="*DownloadFile*" OR CommandLine="*Invoke-WebRequest*" OR CommandLine="*iwr *" OR CommandLine="*irm *"
+        OR CommandLine="*Net.WebClient*" OR CommandLine="*FromBase64String*" OR CommandLine="*System.Convert*"
+        OR CommandLine="*Assembly.Load*" OR CommandLine="*Reflection.Assembly*"
+        OR CommandLine="*Invoke-Shellcode*" OR CommandLine="*Invoke-ReflectivePEInjection*" OR CommandLine="*Invoke-PSInject*" OR CommandLine="*Invoke-ProcessHollow*"
+        OR CommandLine="*Get-Clipboard*"
+      )
+    )
+
+    OR
+
+    // 2) Classic web cradle (download + immediate exec), with common staging domains
+    (
+      (CommandLine="*Invoke-WebRequest*" OR CommandLine="*iwr *" OR CommandLine="*irm *"
+       OR CommandLine="*DownloadString*" OR CommandLine="*DownloadFile*" OR CommandLine="*Net.WebClient*")
+      AND (CommandLine="*IEX*" OR CommandLine="*Invoke-Expression*")
+      AND (
+        CommandLine="*http://*" OR CommandLine="*https://*"
+        OR CommandLine="*raw.githubusercontent.com*" OR CommandLine="*pastebin.com*"
+        OR CommandLine="*cdn.discordapp.com*" OR CommandLine="*transfer.sh*"
+        OR CommandLine="*bit.ly*" OR CommandLine="*tinyurl*"
+        OR CommandLine="*.ru*" OR CommandLine="*.xyz*" OR CommandLine="*.pw*"
+      )
+    )
+
+    OR
+
+    // 3) AMSI / Defender tamper indicators (string-based, still useful)
+    (
+      CommandLine="*AmsiUtils*" OR CommandLine="*amsiInitFailed*"
+      OR CommandLine="*Set-MpPreference*" OR CommandLine="*DisableRealtimeMonitoring*"
+      OR CommandLine="*Add-MpPreference*" OR CommandLine="*DisableIOAVProtection*"
+    )
+
+    OR
+
+    // 4) Suspicious parentage + user-writable execution context (macro/script/browser -> PowerShell in Temp/AppData)
+    (
+      (
+        ParentBaseFileName="winword.exe" OR ParentBaseFileName="excel.exe" OR ParentBaseFileName="outlook.exe"
+        OR ParentBaseFileName="wscript.exe" OR ParentBaseFileName="cscript.exe" OR ParentBaseFileName="mshta.exe"
+        OR ParentBaseFileName="chrome.exe" OR ParentBaseFileName="firefox.exe" OR ParentBaseFileName="iexplore.exe"
+      )
+      AND (CommandLine="*\\AppData\\*" OR CommandLine="*\\Temp\\*" OR CommandLine="*\\Users\\Public\\*" OR CommandLine="*\\ProgramData\\*")
+    )
+
+    OR
+
+    // 5) Scheduled task creation referencing PS script in writable paths
+    (
+      CommandLine="*schtasks*"
+      AND CommandLine="*.ps1*"
+      AND (CommandLine="*\\Users\\*" OR CommandLine="*\\AppData\\*" OR CommandLine="*\\Temp\\*" OR CommandLine="*\\ProgramData\\*")
+    )
+
+    OR
+
+    // 6) Known offensive function names / post-ex exploitation modules (string-based)
+    (
+      CommandLine="*Invoke-Mimikatz*" OR CommandLine="*Invoke-NinjaCopy*"
+      OR CommandLine="*Invoke-DllInjection*" OR CommandLine="*Invoke-ReflectivePEInjection*"
+      OR CommandLine="*Invoke-Shellcode*" OR CommandLine="*Invoke-PSInject*"
+      OR CommandLine="*Invoke-ProcessHollow*" OR CommandLine="*Invoke-SharpCradle*"
+    )
+)
+| groupBy(
+    [FileName, CommandLine, ParentBaseFileName],
+    function=[
+      count(aid, distinct=true, as=HostCount),
+      count(as=EventCount),
+      collect(aid, limit=50, as=HostAIDs),
+      collect(ComputerName, limit=50, as=ComputerNames)
+    ],
+    limit=200
+  )
+| table([FileName, ParentBaseFileName, HostCount, EventCount, ComputerNames, HostAIDs, CommandLine])
+```0
